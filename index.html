@@ -1422,14 +1422,10 @@
       document.getElementById("select-unit").value = person.unit;
       document.getElementById("input-token").value = person.role === "Guru & Staf" ? person.nip_clean : person.kelas;
 
-      // Otomatis isi token PIN untuk demo/tes cepat simulasi
+      // Kolom Token / Password SELALU dikosongkan agar pemilih wajib mengetik token sendiri secara manual
       const pinInput = document.getElementById("input-token-pin");
       if (pinInput) {
-        if (person.role === "Siswa") {
-          pinInput.value = getStudentToken(person);
-        } else {
-          pinInput.value = person.nip_clean;
-        }
+        pinInput.value = "";
       }
 
       document.getElementById("smart-search-results").classList.add("hidden");
@@ -1438,7 +1434,7 @@
       if (appState.activeTab !== "bilik") {
         switchMainTab("bilik");
       }
-      showToast(`Data DPT terisi: ${person.nama} (${person.kelas}). Klik "Masuk ke Bilik Suara".`);
+      showToast(`Data DPT terisi: ${person.nama} (${person.kelas}). Silakan masukkan Token Rahasia Anda.`);
     }
 
     // Auto-lookup when typing NISN/NIS/NIP directly in input-nomor-induk
@@ -2081,6 +2077,10 @@
       appState.pendingPaslonId = null;
       document.getElementById("active-user-pill").classList.add("hidden");
       document.getElementById("active-user-pill").classList.remove("flex");
+      const formEl = document.getElementById("form-voter-login");
+      if (formEl) formEl.reset();
+      const pinEl = document.getElementById("input-token-pin");
+      if (pinEl) pinEl.value = "";
       document.getElementById("subview-ballot").classList.add("hidden");
       document.getElementById("subview-thankyou").classList.add("hidden");
       document.getElementById("subview-login").classList.remove("hidden");
