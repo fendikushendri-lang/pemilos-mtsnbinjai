@@ -547,8 +547,8 @@
           <button type="button" id="btn-toggle-admin-auth" class="px-3.5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition shadow-xs">
             🔑 Login Admin (Hendri Kus Fendi)
           </button>
-          <button type="button" id="btn-add-sim-vote" class="px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold transition">
-            + Tambah 1 Suara Acak (Uji Grafik)
+          <button type="button" id="btn-add-sim-vote" class="hidden px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold transition flex items-center gap-1.5 shadow-xs">
+            <span>⚡ + Tambah 1 Suara Acak (Admin)</span>
           </button>
           <button type="button" id="btn-open-reset-modal" class="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition">
             Reset Data Suara
@@ -1774,11 +1774,21 @@
       const badge = document.getElementById("admin-status-badge");
       const toggleBtn = document.getElementById("btn-toggle-admin-auth");
       const resetBtn = document.getElementById("btn-open-reset-modal");
+      const simVoteBtn = document.getElementById("btn-add-sim-vote");
       const authFormBox = document.getElementById("admin-auth-form-box");
       const resetActionsBox = document.getElementById("admin-reset-actions-box");
       const errBox = document.getElementById("admin-auth-error");
 
       if (errBox) errBox.classList.add("hidden");
+
+      // Tombol Tambah Suara Simulasi hanya tampil jika Admin Hendri Kus Fendi telah terverifikasi
+      if (simVoteBtn) {
+        if (isAuth) {
+          simVoteBtn.classList.remove("hidden");
+        } else {
+          simVoteBtn.classList.add("hidden");
+        }
+      }
 
       if (isAuth) {
         badge.className = "px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-bold flex items-center gap-1.5";
@@ -2473,6 +2483,14 @@
     }
 
     function addRandomSimulationVote() {
+      const isAuth = appState.isAdminAuthenticated || isVoterAuthorizedAdmin(appState.currentVoter);
+      if (!isAuth) {
+        showToast("Akses Terkunci! Fitur tambah suara simulasi hanya dapat digunakan oleh Admin (Bapak Hendri Kus Fendi, S.Pd.).", true);
+        updateAdminUiState();
+        document.getElementById("modal-reset-data").classList.remove("hidden");
+        return;
+      }
+
       const unvoted = ALL_DPT.filter((p) => !hasVoterAlreadyVoted(p));
       if (unvoted.length === 0) {
         showToast("Seluruh 771 DPT sudah memberikan suara!", true);
@@ -3017,7 +3035,16 @@
       document.getElementById("btn-final-cast-vote").addEventListener("click", finalizeCastVote);
 
       // Quick Count & Admin Controls
-      document.getElementById("btn-add-sim-vote").addEventListener("click", addRandomSimulationVote);
+      document.getElementById("btn-add-sim-vote").addEventListener("click", () => {
+        const isAuth = appState.isAdminAuthenticated || isVoterAuthorizedAdmin(appState.currentVoter);
+        if (!isAuth) {
+          showToast("Akses Terkunci! Fitur tambah suara simulasi hanya diizinkan untuk Admin.", true);
+          updateAdminUiState();
+          document.getElementById("modal-reset-data").classList.remove("hidden");
+          return;
+        }
+        addRandomSimulationVote();
+      });
       document.getElementById("filter-log-role").addEventListener("change", renderVoterLogTable);
 
       updateAdminUiState();
