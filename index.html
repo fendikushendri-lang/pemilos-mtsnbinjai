@@ -6,6 +6,11 @@
   <title>E-Voting Pemilihan OSIM MTs Negeri Binjai 2026/2027</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Firebase App & Realtime Database SDK (Compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
+  <!-- SheetJS for Excel (.xlsx) Report Generation -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -86,6 +91,12 @@
               <span>Quick Count &amp; Admin</span>
             </button>
           </nav>
+
+          <!-- Cloud Realtime Database Indicator -->
+          <div id="cloud-status-badge" class="flex items-center gap-1.5 bg-emerald-950/70 border border-emerald-500/50 px-2.5 py-1.5 rounded-xl text-xs text-emerald-200">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" id="cloud-status-dot"></span>
+            <span id="cloud-status-text" class="font-semibold text-emerald-100">Cloud Online</span>
+          </div>
 
           <!-- Active Voter Indicator -->
           <div id="active-user-pill" class="hidden items-center gap-2 bg-emerald-900/80 border border-emerald-500/40 px-3 py-1.5 rounded-xl text-xs">
@@ -501,6 +512,10 @@
           <p class="text-xs sm:text-sm text-slate-600">Rekapitulasi suara sah dari 705 Siswa (Kelas VII, VIII, IX) serta 66 Dewan Guru &amp; Staf Tata Usaha.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
+          <button type="button" id="btn-export-excel" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <span>📥 Unduh Laporan Excel (.xlsx)</span>
+          </button>
           <div id="admin-status-badge" class="px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-300 text-slate-700 text-xs font-semibold flex items-center gap-1.5">
             <span>🔒 Mode Publik (Admin Terkunci)</span>
           </div>
@@ -580,9 +595,15 @@
             <h3 class="font-extrabold text-slate-900 text-base sm:text-lg mt-1">Tabel Total Jumlah Suara Per Tingkat (Kelas 7 - 9 &amp; Guru/Staf)</h3>
             <p class="text-xs text-slate-500 mt-0.5">Rincian perolehan suara sah masing-masing Paslon berdasarkan tingkatan pemilih: Siswa Kelas VII s/d IX serta Dewan Guru &amp; Staf TU.</p>
           </div>
-          <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3.5 py-2 rounded-xl text-xs shrink-0">
-            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-            <span class="text-slate-600 font-medium">Total DPT: <strong class="text-slate-900 font-extrabold">771 Pemilih</strong></span>
+          <div class="flex items-center gap-2.5 flex-wrap">
+            <button type="button" id="btn-export-excel-quick" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5 shrink-0">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              <span>Download Excel (.xlsx)</span>
+            </button>
+            <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3.5 py-1.5 rounded-xl text-xs shrink-0">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+              <span class="text-slate-600 font-medium">Total DPT: <strong class="text-slate-900 font-extrabold">771 Pemilih</strong></span>
+            </div>
           </div>
         </div>
 
@@ -968,8 +989,23 @@
     const STORAGE_KEY = "mtsn_binjai_evoting_dpt_v2";
 
     // =========================================================================
-    // 3. STATE MANAGEMENT & INITIAL REAL-DPT SAMPLE DATA
+    // 3. FIREBASE REALTIME CLOUD DATABASE & STATE MANAGEMENT
     // =========================================================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyB0ei9LVOWIniG2MoqhP49YosJJQLsYLf8",
+      authDomain: "pemilos-mtsn-binjai.firebaseapp.com",
+      databaseURL: "https://pemilos-mtsn-binjai-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "pemilos-mtsn-binjai",
+      storageBucket: "pemilos-mtsn-binjai.firebasestorage.app",
+      messagingSenderId: "580111744351",
+      appId: "1:580111744351:web:05650aa077034712e24aea",
+      measurementId: "G-KSPGCYT12S"
+    };
+
+    let fbDatabase = null;
+    let fbVotesRef = null;
+    let isCloudReady = false;
+
     // Kredensial Tunggal Administrator Resmi
     const AUTHORIZED_ADMIN = {
       nama: "Hendri Kus Fendi",
@@ -989,6 +1025,81 @@
       dptPageSize: 50,
       votes: [] // Array of { voterId, nama, role, unit, kelas, paslonId, timestamp }
     };
+
+    function initFirebaseSync() {
+      try {
+        if (typeof firebase !== "undefined") {
+          if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+          }
+          fbDatabase = firebase.database();
+          fbVotesRef = fbDatabase.ref("pemilos_votes");
+          isCloudReady = true;
+
+          // Sinkronisasi realtime data suara dari cloud ke semua browser & HP pemilih
+          fbVotesRef.on("value", (snapshot) => {
+            const data = snapshot.val();
+            if (data && typeof data === "object") {
+              // Ubah key-value object menjadi array
+              appState.votes = Object.values(data);
+            } else {
+              appState.votes = [];
+            }
+
+            // Simpan cache lokal
+            try {
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(appState.votes));
+            } catch (e) {}
+
+            updateCloudStatusUI(true, `Cloud Sinkron (${appState.votes.length} suara)`);
+
+            // Perbarui seluruh dashboard secara live
+            renderLoginPreviewAndMiniStats();
+            renderQuickCountDashboard();
+            if (appState.activeTab === "dpt") {
+              renderDptDatabaseTable();
+            }
+          }, (err) => {
+            console.error("Firebase listen error:", err);
+            updateCloudStatusUI(false, "Cloud Terputus");
+          });
+
+          // Pantau status koneksi internet/cloud
+          const connectedRef = fbDatabase.ref(".info/connected");
+          connectedRef.on("value", (snap) => {
+            if (snap.val() === true) {
+              updateCloudStatusUI(true, "Cloud Terhubung");
+            } else {
+              updateCloudStatusUI(false, "Menghubungkan Cloud...");
+            }
+          });
+        } else {
+          updateCloudStatusUI(false, "Mode Lokal");
+        }
+      } catch (err) {
+        console.warn("Firebase init gagal:", err);
+        updateCloudStatusUI(false, "Mode Lokal");
+      }
+    }
+
+    function updateCloudStatusUI(isOnline, text) {
+      const badge = document.getElementById("cloud-status-badge");
+      const dot = document.getElementById("cloud-status-dot");
+      const label = document.getElementById("cloud-status-text");
+      if (!badge || !dot || !label) return;
+
+      if (isOnline) {
+        dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+        label.className = "font-semibold text-emerald-100";
+        label.textContent = text || "Cloud Online";
+        badge.className = "flex items-center gap-1.5 bg-emerald-950/70 border border-emerald-500/50 px-2.5 py-1.5 rounded-xl text-xs text-emerald-200 shadow-xs";
+      } else {
+        dot.className = "w-2 h-2 rounded-full bg-amber-400";
+        label.className = "font-semibold text-amber-200";
+        label.textContent = text || "Menghubungkan...";
+        badge.className = "flex items-center gap-1.5 bg-amber-950/70 border border-amber-500/50 px-2.5 py-1.5 rounded-xl text-xs text-amber-200 shadow-xs";
+      }
+    }
 
     function generateInitialSampleVotes() {
       // Menggunakan beberapa data pemilih asli dari DPT untuk contoh grafik awal
@@ -1018,9 +1129,9 @@
           }
         }
       } catch (e) {
-        // Fallback if localStorage blocked
+        // Fallback
       }
-      appState.votes = generateInitialSampleVotes();
+      appState.votes = [];
     }
 
     function saveVotesToStorage() {
@@ -1791,6 +1902,16 @@
         timestamp: timeStr
       };
 
+      // Simpan secara realtime ke Cloud Firebase Database
+      if (fbVotesRef) {
+        const safeKey = String(newVote.voterId).replace(/[.#$\[\]\/]/g, "_");
+        fbVotesRef.child(safeKey).set(newVote).then(() => {
+          console.log("Suara berhasil tersimpan di Cloud Firebase!");
+        }).catch((err) => {
+          console.error("Gagal simpan ke Firebase:", err);
+        });
+      }
+
       appState.votes.unshift(newVote);
       saveVotesToStorage();
 
@@ -2238,7 +2359,7 @@
       const now = new Date();
       const timeStr = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WIB";
 
-      appState.votes.unshift({
+      const simVote = {
         voterId: chosen.id,
         nama: chosen.nama,
         role: chosen.role,
@@ -2246,8 +2367,14 @@
         kelas: chosen.kelas,
         paslonId: paslonId,
         timestamp: timeStr
-      });
+      };
 
+      if (fbVotesRef) {
+        const safeKey = String(simVote.voterId).replace(/[.#$\[\]\/]/g, "_");
+        fbVotesRef.child(safeKey).set(simVote);
+      }
+
+      appState.votes.unshift(simVote);
       saveVotesToStorage();
       renderLoginPreviewAndMiniStats();
       renderQuickCountDashboard();
@@ -2255,14 +2382,259 @@
     }
 
     // =========================================================================
+    // 11B. EXCEL (.XLSX) OFFICIAL RECAPITULATION REPORT GENERATOR
+    // =========================================================================
+    function exportRecapReportToExcel() {
+      if (typeof XLSX === "undefined") {
+        showToast("Pustaka SheetJS belum selesai dimuat. Harap periksa koneksi internet Anda.", true);
+        return;
+      }
+
+      showToast("Sedang menyusun Berita Acara & Laporan Rekapitulasi Excel...");
+
+      const now = new Date();
+      const dateStr = now.toLocaleDateString("id-ID", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric"
+      });
+      const timeStr = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WIB";
+      const totalVotes = appState.votes.length;
+      const turnoutPct = ((totalVotes / TOTAL_DPT) * 100).toFixed(1);
+      const remainingVotes = Math.max(0, TOTAL_DPT - totalVotes);
+
+      // -----------------------------------------------------------------------
+      // SHEET 1: BERITA ACARA & REKAPITULASI SUARA
+      // -----------------------------------------------------------------------
+      const wsData1 = [
+        ["KOMISI PEMILIHAN OSIS / OSIM (KPO) MTs NEGERI BINJAI"],
+        ["BERITA ACARA & LAPORAN REKAPITULASI HASIL PENGHITUNGAN SUARA E-VOTING"],
+        ["PEMILIHAN KETUA & WAKIL KETUA OSIM MASA BAKTI 2026/2027"],
+        [""],
+        ["Waktu Unduh", `${dateStr}, Pukul ${timeStr}`],
+        ["Sistem Database", "Cloud Realtime Database (Tersinkronisasi Online)"],
+        [""],
+        ["I. RINGKASAN UMUM PARTISIPASI PEMILIH"],
+        ["Kategori", "Jumlah (Jiwa)", "Persentase (%)", "Keterangan"],
+        ["Total DPT Terdaftar", TOTAL_DPT, "100.0%", "705 Siswa (Kls 7-9) & 66 Guru/Staf"],
+        ["Total Suara Masuk (Sah)", totalVotes, `${turnoutPct}%`, "Telah menggunakan hak pilih"],
+        ["Belum Memilih (Sisa Suara)", remainingVotes, `${((remainingVotes / TOTAL_DPT) * 100).toFixed(1)}%`, "Belum mencoblos"],
+        [""],
+        ["II. PEROLEHAN SUARA PASANGAN CALON"],
+        ["No. Urut", "Pasangan Calon (Ketua & Wakil)", "Suara Siswa", "Suara Guru & Staf", "Total Suara", "Persentase", "Status Perolehan"]
+      ];
+
+      const candidateStats = PASLON_LIST.map((p) => {
+        const paslonVotes = appState.votes.filter((v) => v.paslonId === p.id);
+        const sCount = paslonVotes.filter((v) => v.role === "Siswa").length;
+        const gCount = paslonVotes.filter((v) => v.role === "Guru & Staf").length;
+        const total = paslonVotes.length;
+        const pct = totalVotes > 0 ? ((total / totalVotes) * 100).toFixed(1) : "0.0";
+        return { ...p, siswa: sCount, guru: gCount, total: total, pct: pct };
+      });
+
+      const sortedCandidates = [...candidateStats].sort((a, b) => b.total - a.total);
+      candidateStats.forEach((c) => {
+        const rank = sortedCandidates.findIndex((sc) => sc.id === c.id) + 1;
+        const rankLabel = totalVotes === 0 ? "-" : (rank === 1 ? "Peringkat 1 (Unggul Sementara)" : `Peringkat ${rank}`);
+        wsData1.push([
+          `0${c.id}`,
+          `${c.ketua} & ${c.wakil}`,
+          c.siswa,
+          c.guru,
+          c.total,
+          `${c.pct}%`,
+          rankLabel
+        ]);
+      });
+
+      const totalSiswaVotes = appState.votes.filter((v) => v.role === "Siswa").length;
+      const totalGuruVotes = appState.votes.filter((v) => v.role === "Guru & Staf").length;
+      wsData1.push([
+        "TOTAL",
+        "SEMUA PASANGAN CALON",
+        totalSiswaVotes,
+        totalGuruVotes,
+        totalVotes,
+        totalVotes > 0 ? "100.0%" : "0.0%",
+        "-"
+      ]);
+
+      wsData1.push([""]);
+      wsData1.push(["III. REKAPITULASI SUARA PER TINGKAT (KELAS 7 - 9 & GURU/STAF)"]);
+      wsData1.push(["Tingkat / Kategori", "Target DPT", "Paslon 01", "Paslon 02", "Paslon 03", "Total Suara Masuk", "Partisipasi (%)", "Belum Memilih"]);
+
+      const tiers = [
+        { unit: "Kelas VII", label: "Siswa Kelas VII (Kelas 7)", quota: DPT_QUOTA["Kelas VII"] || 188 },
+        { unit: "Kelas VIII", label: "Siswa Kelas VIII (Kelas 8)", quota: DPT_QUOTA["Kelas VIII"] || 298 },
+        { unit: "Kelas IX", label: "Siswa Kelas IX (Kelas 9)", quota: DPT_QUOTA["Kelas IX"] || 219 },
+        { unit: "Guru & Staf", label: "Dewan Guru & Staf TU", quota: DPT_QUOTA["Guru & Staf"] || 66 }
+      ];
+
+      let sumDpt = 0, sumP1 = 0, sumP2 = 0, sumP3 = 0, sumMasuk = 0;
+      tiers.forEach((t) => {
+        const tVotes = appState.votes.filter((v) => v.unit === t.unit);
+        const p1 = tVotes.filter((v) => v.paslonId === 1).length;
+        const p2 = tVotes.filter((v) => v.paslonId === 2).length;
+        const p3 = tVotes.filter((v) => v.paslonId === 3).length;
+        const tMasuk = p1 + p2 + p3;
+        const tPct = ((tMasuk / t.quota) * 100).toFixed(1);
+        const tBelum = Math.max(0, t.quota - tMasuk);
+
+        sumDpt += t.quota;
+        sumP1 += p1;
+        sumP2 += p2;
+        sumP3 += p3;
+        sumMasuk += tMasuk;
+
+        wsData1.push([
+          t.label,
+          t.quota,
+          p1,
+          p2,
+          p3,
+          tMasuk,
+          `${tPct}%`,
+          tBelum
+        ]);
+      });
+
+      wsData1.push([
+        "TOTAL KESELURUHAN",
+        sumDpt,
+        sumP1,
+        sumP2,
+        sumP3,
+        sumMasuk,
+        `${((sumMasuk / sumDpt) * 100).toFixed(1)}%`,
+        Math.max(0, sumDpt - sumMasuk)
+      ]);
+
+      wsData1.push([""]);
+      wsData1.push(["PENGESAHAN LAPORAN HASIL PENGHITUNGAN SUARA:"]);
+      wsData1.push(["Mengetahui,", "", "", "", "", "Binjai, " + dateStr]);
+      wsData1.push(["Plt. Kepala MTs Negeri Binjai", "", "", "", "", "Administrator / Panitia KPO"]);
+      wsData1.push([""]);
+      wsData1.push([""]);
+      wsData1.push(["Hj. Nurdianah, S.Ag, S.Pd., MM.", "", "", "", "", "Hendri Kus Fendi, S.Pd."]);
+      wsData1.push(["NIP. 1975052920050120003", "", "", "", "", "NIP. 199206102019031009"]);
+
+      const ws1 = XLSX.utils.aoa_to_sheet(wsData1);
+      ws1["!cols"] = [
+        { wch: 32 },
+        { wch: 34 },
+        { wch: 16 },
+        { wch: 20 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 26 },
+        { wch: 16 }
+      ];
+
+      // -----------------------------------------------------------------------
+      // SHEET 2: DAFTAR RIWAYAT HADIR PEMILIH
+      // -----------------------------------------------------------------------
+      const wsData2 = [
+        ["DAFTAR RIWAYAT HADIR PEMILIH YANG TELAH MENCOBLOS"],
+        ["E-VOTING PEMILIHAN OSIM MTs NEGERI BINJAI 2026/2027"],
+        ["*Catatan: Pilihan paslon dirahasiakan (Asas LUBER JURDIL), log ini mencatat status kehadiran pemilih resmi."],
+        [""],
+        ["No", "Nama Pemilih (DPT)", "NISN / NIP", "Kategori", "Kelas / Jabatan", "Tingkat", "Waktu Mencoblos", "Status Rekam"]
+      ];
+
+      if (appState.votes.length === 0) {
+        wsData2.push(["-", "Belum ada suara pemilih yang masuk", "-", "-", "-", "-", "-", "-"]);
+      } else {
+        appState.votes.forEach((v, idx) => {
+          wsData2.push([
+            idx + 1,
+            v.nama,
+            v.voterId,
+            v.role,
+            v.kelas || "-",
+            v.unit || "-",
+            v.timestamp || "-",
+            "SUDAH MEMILIH (SAH)"
+          ]);
+        });
+      }
+
+      const ws2 = XLSX.utils.aoa_to_sheet(wsData2);
+      ws2["!cols"] = [
+        { wch: 6 },
+        { wch: 35 },
+        { wch: 22 },
+        { wch: 14 },
+        { wch: 26 },
+        { wch: 16 },
+        { wch: 20 },
+        { wch: 24 }
+      ];
+
+      // -----------------------------------------------------------------------
+      // SHEET 3: MASTER DATA DPT (771 PEMILIH) DENGAN STATUS MEMILIH
+      // -----------------------------------------------------------------------
+      const wsData3 = [
+        ["DAFTAR PEMILIH TETAP (DPT) & STATUS HAK SUARA"],
+        ["DATABASE RESMI 771 DPT (705 SISWA & 66 GURU/STAF) MTs NEGERI BINJAI"],
+        [""],
+        ["No", "Nama Lengkap", "NISN / NIP", "NIS / Kode", "Kategori", "Kelas / Jabatan", "Tingkat", "Status Hak Suara"]
+      ];
+
+      ALL_DPT.forEach((p, idx) => {
+        const isVoted = hasVoterAlreadyVoted(p);
+        wsData3.push([
+          idx + 1,
+          p.nama,
+          p.id,
+          p.nis || "-",
+          p.role,
+          p.kelas,
+          p.unit,
+          isVoted ? "SUDAH MEMILIH" : "BELUM MEMILIH"
+        ]);
+      });
+
+      const ws3 = XLSX.utils.aoa_to_sheet(wsData3);
+      ws3["!cols"] = [
+        { wch: 6 },
+        { wch: 35 },
+        { wch: 22 },
+        { wch: 16 },
+        { wch: 14 },
+        { wch: 26 },
+        { wch: 16 },
+        { wch: 20 }
+      ];
+
+      // Buat Workbook dan simpan file
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws1, "Rekapitulasi Suara");
+      XLSX.utils.book_append_sheet(wb, ws2, "Log Kehadiran Pemilih");
+      XLSX.utils.book_append_sheet(wb, ws3, "Master DPT (771)");
+
+      const fileDate = now.toISOString().slice(0, 10);
+      const filename = `Laporan_Rekapitulasi_Pemilos_MTsN_Binjai_${fileDate}.xlsx`;
+      XLSX.writeFile(wb, filename);
+
+      showToast(`✅ Berhasil mengunduh: ${filename}`);
+    }
+
+    // =========================================================================
     // 12. EVENT LISTENERS INITIALIZATION
     // =========================================================================
     function initApp() {
+      initFirebaseSync();
       loadVotesFromStorage();
       renderLoginPreviewAndMiniStats();
       renderBallotCards();
       renderProfilFullView();
       populateRombelFilterOptions();
+
+      // Excel Report Exports
+      document.getElementById("btn-export-excel").addEventListener("click", exportRecapReportToExcel);
+      document.getElementById("btn-export-excel-quick").addEventListener("click", exportRecapReportToExcel);
 
       // Main Navigation
       document.getElementById("nav-bilik").addEventListener("click", () => switchMainTab("bilik"));
@@ -2426,6 +2798,13 @@
         }
         appState.votes = [];
         saveVotesToStorage();
+        if (fbVotesRef) {
+          fbVotesRef.set(null).then(() => {
+            showToast("Cloud Firebase: Seluruh suara online berhasil di-reset ke 0!");
+          }).catch((err) => {
+            console.error("Gagal reset Firebase:", err);
+          });
+        }
         renderLoginPreviewAndMiniStats();
         renderQuickCountDashboard();
         document.getElementById("modal-reset-data").classList.add("hidden");
@@ -2437,8 +2816,19 @@
           showToast("Akses ditolak! Harap verifikasi sebagai Pak Hendri Kus Fendi terlebih dahulu.", true);
           return;
         }
-        appState.votes = generateInitialSampleVotes();
+        const sampleVotes = generateInitialSampleVotes();
+        appState.votes = sampleVotes;
         saveVotesToStorage();
+        if (fbVotesRef) {
+          const updates = {};
+          sampleVotes.forEach((v) => {
+            const safeKey = String(v.voterId).replace(/[.#$\[\]\/]/g, "_");
+            updates[safeKey] = v;
+          });
+          fbVotesRef.set(updates).then(() => {
+            showToast("Cloud Firebase: Data contoh berhasil disinkronkan ke cloud!");
+          });
+        }
         renderLoginPreviewAndMiniStats();
         renderQuickCountDashboard();
         document.getElementById("modal-reset-data").classList.add("hidden");
