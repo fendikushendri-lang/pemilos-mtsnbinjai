@@ -801,7 +801,7 @@
           <span>🛡️ Hak Akses Eksklusif Administrator:</span>
         </div>
         <div>Admin Tunggal: <strong>Hendri Kus Fendi, S.Pd.</strong> (NIP: <span class="font-mono">199206102019031009</span>)</div>
-        <div class="text-[11px] text-amber-800">• Login Admin menggunakan <strong>Password Khusus Admin</strong>.<br>• Saat memilih di Bilik Suara sebagai Guru, login menggunakan <strong>Password NIP</strong>.</div>
+        <div class="text-[11px] text-amber-800">• Login Admin menggunakan <strong>Password Khusus Admin</strong>.<br>• Saat memilih di Bilik Suara sebagai Guru, gunakan <strong>Token Rahasia Guru</strong>.</div>
       </div>
 
       <!-- Form Verifikasi Admin (Wajib Password Admin Tsabita27) -->
@@ -1307,6 +1307,8 @@
         if (inputTokenPin) {
           inputTokenPin.placeholder = "Ketik 6 digit token rahasia dari kartu pemilih Anda...";
           inputTokenPin.maxLength = 10;
+          inputTokenPin.classList.remove("lowercase");
+          inputTokenPin.classList.add("uppercase");
         }
         if (descTokenText) {
           descTokenText.textContent = "🔒 Masukkan 6 karakter token rahasia yang tercantum pada kartu pemilih Anda dari Panitia / Wali Kelas. Token ini wajib untuk membuka bilik suara.";
@@ -1324,17 +1326,19 @@
         inputToken.type = "text";
         inputToken.placeholder = "Guru / Pegawai MTsN Binjai";
 
-        if (labelTokenPin) labelTokenPin.innerHTML = '🔑 3. Masukkan Password NIP Guru <span class="text-rose-600">*</span>';
+        if (labelTokenPin) labelTokenPin.innerHTML = '🔑 3. Masukkan Token Rahasia Guru <span class="text-rose-600">*</span>';
         if (badgeTokenType) {
-          badgeTokenType.textContent = "Password NIP";
+          badgeTokenType.textContent = "Token Khusus Guru";
           badgeTokenType.className = "text-[10px] font-bold text-emerald-900 bg-emerald-200 px-2.5 py-0.5 rounded-full";
         }
         if (inputTokenPin) {
-          inputTokenPin.placeholder = "Ketik NIP Anda sebagai kata sandi guru...";
+          inputTokenPin.placeholder = "Ketik token rahasia guru...";
           inputTokenPin.maxLength = 25;
+          inputTokenPin.classList.remove("uppercase");
+          inputTokenPin.classList.add("lowercase");
         }
         if (descTokenText) {
-          descTokenText.textContent = "🔒 Untuk Dewan Guru & Staf, password bilik suara adalah NIP / Kode Guru resmi Anda.";
+          descTokenText.textContent = "🔒 Untuk Dewan Guru & Staf, masukkan token rahasia resmi pemilih guru dari Panitia.";
         }
       }
     }
@@ -1720,7 +1724,11 @@
 
         let tokenHtml = "";
         if (isGuru) {
-          tokenHtml = `<span class="text-[10px] text-slate-400 font-medium">NIP Guru</span>`;
+          if (appState.showDptTokens && appState.isAdminAuthenticated) {
+            tokenHtml = `<span class="inline-block px-2 py-0.5 rounded bg-emerald-100 text-emerald-950 font-bold tracking-wider text-[11px] border border-emerald-300 font-mono shadow-2xs lowercase">osimhebat</span>`;
+          } else {
+            tokenHtml = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-500 font-mono text-[10px]" title="Token dirahasiakan. Hanya dapat dibuka oleh Admin."><span class="tracking-widest">••••••••</span> <span class="text-[9px] text-slate-400">🔒</span></span>`;
+          }
         } else {
           if (appState.showDptTokens && appState.isAdminAuthenticated) {
             tokenHtml = `<span class="inline-block px-2 py-0.5 rounded bg-amber-100 text-amber-950 font-black tracking-wider text-[11px] border border-amber-300 font-mono shadow-2xs">${getStudentToken(p)}</span>`;
@@ -1818,8 +1826,10 @@
       const validPassword = passIn === AUTHORIZED_ADMIN.passwordAdmin;
 
       if (!validIdentity || !validPassword) {
-        if (passIn.replace(/\s+/g, "") === AUTHORIZED_ADMIN.nip) {
-          errBox.textContent = "NIP digunakan sebagai password saat memilih di Bilik Suara Guru. Untuk Login Admin, masukkan Password Admin khusus (Tsabita27).";
+        if (passIn.replace(/\s+/g, "").toLowerCase() === "osimhebat") {
+          errBox.textContent = "Token Bilik Suara Guru tidak dapat digunakan untuk Login Admin. Masukkan Password Admin khusus (Tsabita27).";
+        } else if (passIn.replace(/\s+/g, "") === AUTHORIZED_ADMIN.nip) {
+          errBox.textContent = "NIP tidak digunakan sebagai password Admin. Untuk Login Admin, masukkan Password Admin khusus (Tsabita27).";
         } else {
           errBox.textContent = "Akses Ditolak! Nama Admin harus Hendri Kus Fendi, S.Pd. dan Password Admin harus benar.";
         }
@@ -1928,7 +1938,7 @@
 
       // Verifikasi Token Rahasia Pemilih (Anti-Kecurangan Siswa & Keamanan Guru)
       const tokenPinEl = document.getElementById("input-token-pin");
-      const pinRaw = tokenPinEl ? tokenPinEl.value.trim().toUpperCase() : "";
+      const pinRaw = tokenPinEl ? tokenPinEl.value.trim() : "";
 
       if (canonicalRole === "Siswa") {
         if (!pinRaw) {
@@ -1938,23 +1948,29 @@
           return;
         }
         const expectedToken = getStudentToken(matchedDpt).toUpperCase();
-        if (pinRaw !== expectedToken) {
+        if (pinRaw.toUpperCase() !== expectedToken) {
           errBox.textContent = `❌ Token Rahasia salah untuk pemilih ${canonicalNama}! Pastikan memasukkan 6 digit token yang benar sesuai kartu pemilih Anda dari wali kelas.`;
           errBox.classList.remove("hidden");
           showToast("Token rahasia salah! Periksa kembali kartu pemilih.", true);
           return;
         }
       } else if (canonicalRole === "Guru & Staf") {
-        if (pinRaw === AUTHORIZED_ADMIN.passwordAdmin.toUpperCase()) {
-          errBox.textContent = "Password 'Tsabita27' adalah Password khusus Login Admin. Untuk memilih sebagai Guru di Bilik Suara, silakan gunakan NIP Anda sebagai kata sandi.";
+        if (!pinRaw) {
+          errBox.textContent = "Token Rahasia Guru wajib diisi! Masukkan password token khusus guru yang dibagikan Panitia.";
           errBox.classList.remove("hidden");
-          showToast("Gunakan NIP sebagai kata sandi saat memilih sebagai Guru!", true);
+          showToast("Token rahasia guru belum diisi!", true);
           return;
         }
-        if (!pinRaw || pinRaw.toLowerCase() !== canonicalId.toLowerCase()) {
-          errBox.textContent = `Untuk memilih sebagai Guru/Staf, kolom Password Bilik Suara wajib diisi dengan NIP Anda (${canonicalId}).`;
+        if (pinRaw === AUTHORIZED_ADMIN.passwordAdmin) {
+          errBox.textContent = "Password 'Tsabita27' adalah Password khusus Login Admin. Untuk memilih sebagai Guru di Bilik Suara, silakan gunakan Token Rahasia Guru.";
           errBox.classList.remove("hidden");
-          showToast("Password Pemilih Guru harus sesuai dengan NIP!", true);
+          showToast("Gunakan Token Rahasia Guru saat memilih sebagai Guru!", true);
+          return;
+        }
+        if (pinRaw.toLowerCase() !== "osimhebat") {
+          errBox.textContent = `❌ Token Rahasia salah untuk pemilih ${canonicalNama}! Periksa kembali token resmi pemilih guru dari Panitia.`;
+          errBox.classList.remove("hidden");
+          showToast("Token rahasia guru salah!", true);
           return;
         }
       }
